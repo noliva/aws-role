@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
+	awsrole "github.com/ryanfrench/aws-role/aws-role"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +21,7 @@ import (
 
 var (
 	roleArn string
+	debug   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -83,9 +85,18 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&roleArn, "role-arn", "r", "", "The arn of the role to assume in AWS (required)")
 	rootCmd.MarkFlagRequired("role-arn")
+
+	rootCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Debug mode")
 }
 
 func run(cmd *cobra.Command, args []string) {
+
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	args = stripFlags(args)
 	roleSessionName, _ := uuid.NewUUID()
 	svc := sts.New(session.New())
@@ -126,6 +137,10 @@ func run(cmd *cobra.Command, args []string) {
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", *assumeRoleResponse.Credentials.AccessKeyId),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", *assumeRoleResponse.Credentials.SecretAccessKey),
 		fmt.Sprintf("AWS_SESSION_TOKEN=%s", *assumeRoleResponse.Credentials.SessionToken))
+
+	if err := awsrole.CacheCredentials(roleArn, assumeRoleResponse.Credentials); err != nil {
+		log.Error("Unable to cache credentials")
+	}
 
 	if err := command.Run(); err != nil {
 		log.
