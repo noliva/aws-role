@@ -35,8 +35,6 @@ e.g.
 
 aws-role --role-arn=arn:aws:iam::1234567890:role/my-role aws s3 ls`,
 	Run:                   run,
-	Version:               "0.2.1",
-	Args:                  cobra.MinimumNArgs(1),
 	DisableFlagParsing:    true,
 	DisableFlagsInUseLine: true,
 	PersistentPreRun:      preRun,
@@ -50,8 +48,7 @@ func Execute() {
 		log.WithError(err).Fatal("aws cli is not installed. For information on how to install the aws cli, please visit https://aws.amazon.com/cli/")
 	}
 	if err := rootCmd.Execute(); err != nil {
-		log.Error(err)
-		os.Exit(-1)
+		log.Warn(err)
 	}
 }
 
@@ -85,8 +82,9 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.Flags().StringVarP(&roleArn, "role-arn", "r", "", "The arn of the role to assume in AWS (required)")
-	rootCmd.MarkFlagRequired("")
-
+	if err := rootCmd.MarkFlagRequired("role-arn"); err != nil {
+		log.Debugf("error marking flag as required: %s", err)
+	}
 	rootCmd.Flags().Int64VarP(&duration, "duration", "d", 3600, "The duration, in seconds, for the role to be assumed")
 }
 
@@ -122,22 +120,21 @@ func run(cmd *cobra.Command, args []string) {
 			switch aerr.Code() {
 			case sts.ErrCodeMalformedPolicyDocumentException:
 				log.WithError(aerr).
-					Errorln(sts.ErrCodeMalformedPolicyDocumentException)
+					Fatal(sts.ErrCodeMalformedPolicyDocumentException)
 			case sts.ErrCodePackedPolicyTooLargeException:
 				log.WithError(aerr).
-					Errorln(sts.ErrCodePackedPolicyTooLargeException)
+					Fatal(sts.ErrCodePackedPolicyTooLargeException)
 			case sts.ErrCodeRegionDisabledException:
 				log.WithError(aerr).
-					Errorln(sts.ErrCodeRegionDisabledException)
+					Fatal(sts.ErrCodeRegionDisabledException)
 			default:
 				log.WithError(aerr).
-					Errorln(sts.ErrCodeRegionDisabledException)
+					Fatal(sts.ErrCodeRegionDisabledException)
 			}
-		} else {
-			log.WithError(err).
-				Errorln("Error assuming role")
 		}
-		os.Exit(1)
+
+		log.WithError(err).
+			Fatal("Error assuming role")
 	}
 
 	sessionExpiration := *assumeRoleResponse.Credentials.Expiration

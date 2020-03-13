@@ -1,3 +1,8 @@
+## 0.2.1
+
+### Changed
+- Moved to go mod
+
 ## 0.2.0
 
 ### Added

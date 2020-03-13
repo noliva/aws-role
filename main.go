@@ -2,7 +2,14 @@
 
 package main
 
-import "github.com/ryanfrench/aws-role/cmd"
+import (
+	"github.com/ryanfrench/aws-role/cmd"
+	"github.com/sirupsen/logrus"
+)
+
+func init(){
+	logrus.SetLevel(logrus.DebugLevel)
+}
 
 func main() {
 	cmd.Execute()
